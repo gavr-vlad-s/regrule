@@ -1,0 +1,1 @@
+full_string   -> {%char_by_code*((%quoted_string%char_by_code+)*|%quoted_string)}
