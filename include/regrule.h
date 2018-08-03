@@ -18,8 +18,8 @@
 #include "../include/main_scaner.h"
 
 struct Rule_info{
-    size_t                           name_;
-    std::shared_ptr<ast::Regexp_ast> body_;
+    size_t          name_;
+    ast::Regexp_ast body_;
 };
 
 class Regrule{

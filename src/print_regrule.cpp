@@ -14,6 +14,6 @@
 void print_regrule(const Rule_info& ri, const std::shared_ptr<Char_trie>& t)
 {
     auto rname = idx_to_string(t, ri.name_);
-    auto rbody = ast2string(*ri.body_);
+    auto rbody = ast2string(ri.body_);
     printf("rule with name %s [%zu]:\n %s\n", rname.c_str(), ri.name_, rbody.c_str());
 }

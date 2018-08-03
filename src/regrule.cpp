@@ -21,36 +21,38 @@
  *      a    identifier which is a rule name
  *      b    -> (i.e., arrow)
  *      c    {regular expression}
- * Minimal DFA for the regexp (1) has the following transition table:
- *
- * |-------|---|---|---|--------------|
- * | State | a | b | c | Remark       |
- * |-------|---|---|---|--------------|
- * |   A   | B |   |   | Start state. |
- * |-------|---|---|---|--------------|
- * |   B   |   | C |   |              |
- * |-------|---|---|---|--------------|
- * |   C   |   |   | D |              |
- * |-------|---|---|---|--------------|
- * |   D   |   |   |   | Final state. |
- * |-------|---|---|---|--------------|
- *
- * But for ease of writing, we need to introduce more meaningful names for states of
- * a finite automaton. The following table shows the matching state names from the
- * previous table and meaningful names. Meaningful names are collected in the enumeration
- * State.
- *
- * |-------|-------------------|
- * | State |  Meaningful name  |
- * |-------|-------------------|
- * |   A   | Start             |
- * |-------|-------------------|
- * |   B   | Rule_name         |
- * |-------|-------------------|
- * |   C   | Arrow             |
- * |-------|-------------------|
- * |   D   | Body              |
- * |-------|-------------------|
+ * Parsing of this regexp will be implemented using a recursive descent method.
+// // // // // // // // // //  *
+// // // // // // // // // //  * Minimal DFA for the regexp (1) has the following transition table:
+// // // // // // // // // //  *
+// // // // // // // // // //  * |-------|---|---|---|--------------|
+// // // // // // // // // //  * | State | a | b | c | Remark       |
+// // // // // // // // // //  * |-------|---|---|---|--------------|
+// // // // // // // // // //  * |   A   | B |   |   | Start state. |
+// // // // // // // // // //  * |-------|---|---|---|--------------|
+// // // // // // // // // //  * |   B   |   | C |   |              |
+// // // // // // // // // //  * |-------|---|---|---|--------------|
+// // // // // // // // // //  * |   C   |   |   | D |              |
+// // // // // // // // // //  * |-------|---|---|---|--------------|
+// // // // // // // // // //  * |   D   |   |   |   | Final state. |
+// // // // // // // // // //  * |-------|---|---|---|--------------|
+// // // // // // // // // //  *
+// // // // // // // // // //  * But for ease of writing, we need to introduce more meaningful names for states of
+// // // // // // // // // //  * a finite automaton. The following table shows the matching state names from the
+// // // // // // // // // //  * previous table and meaningful names. Meaningful names are collected in the enumeration
+// // // // // // // // // //  * State.
+// // // // // // // // // //  *
+// // // // // // // // // //  * |-------|-------------------|
+// // // // // // // // // //  * | State |  Meaningful name  |
+// // // // // // // // // //  * |-------|-------------------|
+// // // // // // // // // //  * |   A   | Start             |
+// // // // // // // // // //  * |-------|-------------------|
+// // // // // // // // // //  * |   B   | Rule_name         |
+// // // // // // // // // //  * |-------|-------------------|
+// // // // // // // // // //  * |   C   | Arrow             |
+// // // // // // // // // //  * |-------|-------------------|
+// // // // // // // // // //  * |   D   | Body              |
+// // // // // // // // // //  * |-------|-------------------|
  */
 
 struct Regrule::Impl{
@@ -71,27 +73,29 @@ private:
     std::shared_ptr<Main_scaner> msc_;
     Errors_and_tries             et_;
     std::shared_ptr<Scope>       scope_;
-
-    Main_lexem_code              lc_;
-    Main_lexem_info              li_;
+//
+//     Main_lexem_code              lc_;
+//     Main_lexem_info              li_;
 
     Rule_info                    current_rule_;
 
-    enum class State{
-        Start, Rule_name, Arrow, Body
-    };
+    void proc_a(); void proc_b(); void proc_c();
 
-    typedef bool (Regrule::Impl::*Proc)();
-
-    static Proc                  procs_[];
-
-    bool start_proc(); bool rule_name_proc();
-    bool arrow_proc(); bool body_proc();
-
-    void automaton();
-
-    State                        state_;
-
+//     enum class State{
+//         Start, Rule_name, Arrow, Body
+//     };
+//
+//     typedef bool (Regrule::Impl::*Proc)();
+//
+//     static Proc                  procs_[];
+//
+//     bool start_proc(); bool rule_name_proc();
+//     bool arrow_proc(); bool body_proc();
+//
+//     void automaton();
+//
+//     State                        state_;
+//
     void check_rule_name(size_t name_idx);
 };
 
@@ -110,17 +114,6 @@ Rule_info Regrule::compile()
     auto result = impl_->compile();
     return result;
 }
-
-Rule_info Regrule::Impl::compile()
-{
-    automaton();
-    return current_rule_;
-}
-
-Regrule::Impl::Proc Regrule::Impl::procs_[] = {
-    &Regrule::Impl::start_proc, &Regrule::Impl::rule_name_proc,
-    &Regrule::Impl::arrow_proc, &Regrule::Impl::body_proc
-};
 
 enum class Msg_name{
     Expected_rule_name,            Expected_arrow,
@@ -164,116 +157,161 @@ void Regrule::Impl::check_rule_name(size_t name_idx)
     id_scope[name_idx]     =  existing_id_attr;
 }
 
-bool Regrule::Impl::start_proc()
+void Regrule::Impl::proc_a()
 {
-    bool t = true;
-    if(lc_ == Main_lexem_code::Id){
-        current_rule_.name_ = li_.ident_index;
-        state_              = State::Rule_name;
-        // Check the name of the rule to see if it is already defined.
-        check_rule_name(li_.ident_index);
-        return t;
+    Main_lexem_info li = msc_->current_lexem();
+    Main_lexem_code lc = li.code;
+    if(lc == Main_lexem_code::Id){
+        current_rule_.name_ = li.ident_index;
+        check_rule_name(li.ident_index);
+        return;
     }
     printf(messages[static_cast<unsigned>(Msg_name::Expected_rule_name)],
            msc_->lexem_begin_line_number());
     et_.ec->increment_number_of_errors();
-    switch(lc_){
-        case Main_lexem_code::Arrow:
-            state_ = State::Arrow;
-            break;
-        case Main_lexem_code::Opened_fig_brack:
-            state_ = State::Body;
-            msc_->back();
-            break;
-        default:
-            t      = false;
-    }
-    return t;
 }
 
-bool Regrule::Impl::rule_name_proc()
+void Regrule::Impl::proc_b()
 {
-    bool t = true;
-    if(lc_ == Main_lexem_code::Arrow){
-        state_ = State::Arrow;
-        return t;
+    Main_lexem_info li = msc_->current_lexem();
+    Main_lexem_code lc = li.code;
+    if(lc == Main_lexem_code::Arrow){
+        return;
     }
     printf(messages[static_cast<unsigned>(Msg_name::Expected_arrow)],
            msc_->lexem_begin_line_number());
     et_.ec->increment_number_of_errors();
-    switch(lc_){
-        case Main_lexem_code::Id:
-            current_rule_.name_ = li_.ident_index;
-            state_              = State::Rule_name;
-            // Check the name of the rule to see if it is already defined.
-            check_rule_name(li_.ident_index);
-            break;
-        case Main_lexem_code::Opened_fig_brack:
-            state_ = State::Body;
-            msc_->back();
-            break;
-        default:
-            t                   = false;
-    }
-    return t;
 }
 
-bool Regrule::Impl::arrow_proc()
+void Regrule::Impl::proc_c()
 {
-    bool t = true;
-    if(lc_ == Main_lexem_code::Opened_fig_brack){
-        state_ = State::Body;
-        msc_->back();
-        return t;
-    }
-    printf(messages[static_cast<unsigned>(Msg_name::Expected_opened_curly_bracket)],
-           msc_->lexem_begin_line_number());
-    et_.ec->increment_number_of_errors();
-    switch(lc_){
-        case Main_lexem_code::Id:
-            current_rule_.name_ = li_.ident_index;
-            state_              = State::Rule_name;
-            // Check the name of the rule to see if it is already defined.
-            check_rule_name(li_.ident_index);
-            break;
-        case Main_lexem_code::Arrow:
-            state_ = State::Arrow;
-            break;
-        default:
-            t                   = false;
-    }
-    return t;
+    current_rule_.body_ = ep_->compile();
 }
 
-bool Regrule::Impl::body_proc()
-{
-    bool t;
-    msc_->back();
-    // We get the result of parsing the regular expression, which is
-    // the body of the rule, and return it.
-    auto regexp         = ep_->compile();
-    auto regexp_root    = regexp.get_root();
-    current_rule_.body_ = std::make_shared<ast::Regexp_ast>(regexp_root);
-    t = false;
-    return t;
-}
-
-void Regrule::Impl::automaton()
+Rule_info Regrule::Impl::compile()
 {
     current_rule_.name_ = 0;
-    current_rule_.body_ = nullptr;
-    // Do something.
-    state_ = State::Start;
-    while((lc_ = (li_ = msc_->current_lexem()).code) != Main_lexem_code::None){
-        bool t = (this->*procs_[static_cast<unsigned>(state_)])();
-        if(!t){
-            break;
-        }
-    }
-    if(state_ != State::Body){
-        printf(messages[static_cast<unsigned>(Msg_name::Unexpected_end_of_text)],
-               msc_->lexem_begin_line_number());
-        et_.ec->increment_number_of_errors();
-        msc_->back();
-    }
+    current_rule_.body_ = ast::Regexp_ast();
+    proc_a();
+    proc_b();
+    proc_c();
+    return current_rule_;
 }
+
+// Regrule::Impl::Proc Regrule::Impl::procs_[] = {
+//     &Regrule::Impl::start_proc, &Regrule::Impl::rule_name_proc,
+//     &Regrule::Impl::arrow_proc, &Regrule::Impl::body_proc
+// };
+// bool Regrule::Impl::start_proc()
+// {
+//     bool t = true;
+//     if(lc_ == Main_lexem_code::Id){
+//         current_rule_.name_ = li_.ident_index;
+//         state_              = State::Rule_name;
+//         // Check the name of the rule to see if it is already defined.
+//         check_rule_name(li_.ident_index);
+//         return t;
+//     }
+//     printf(messages[static_cast<unsigned>(Msg_name::Expected_rule_name)],
+//            msc_->lexem_begin_line_number());
+//     et_.ec->increment_number_of_errors();
+//     switch(lc_){
+//         case Main_lexem_code::Arrow:
+//             state_ = State::Arrow;
+//             break;
+//         case Main_lexem_code::Opened_fig_brack:
+//             state_ = State::Body;
+//             msc_->back();
+//             break;
+//         default:
+//             t      = false;
+//     }
+//     return t;
+// }
+//
+// bool Regrule::Impl::rule_name_proc()
+// {
+//     bool t = true;
+//     if(lc_ == Main_lexem_code::Arrow){
+//         state_ = State::Arrow;
+//         return t;
+//     }
+//     printf(messages[static_cast<unsigned>(Msg_name::Expected_arrow)],
+//            msc_->lexem_begin_line_number());
+//     et_.ec->increment_number_of_errors();
+//     switch(lc_){
+//         case Main_lexem_code::Id:
+//             current_rule_.name_ = li_.ident_index;
+//             state_              = State::Rule_name;
+//             // Check the name of the rule to see if it is already defined.
+//             check_rule_name(li_.ident_index);
+//             break;
+//         case Main_lexem_code::Opened_fig_brack:
+//             state_ = State::Body;
+//             msc_->back();
+//             break;
+//         default:
+//             t                   = false;
+//     }
+//     return t;
+// }
+//
+// bool Regrule::Impl::arrow_proc()
+// {
+//     bool t = true;
+//     if(lc_ == Main_lexem_code::Opened_fig_brack){
+//         state_ = State::Body;
+//         msc_->back();
+//         return t;
+//     }
+//     printf(messages[static_cast<unsigned>(Msg_name::Expected_opened_curly_bracket)],
+//            msc_->lexem_begin_line_number());
+//     et_.ec->increment_number_of_errors();
+//     switch(lc_){
+//         case Main_lexem_code::Id:
+//             current_rule_.name_ = li_.ident_index;
+//             state_              = State::Rule_name;
+//             // Check the name of the rule to see if it is already defined.
+//             check_rule_name(li_.ident_index);
+//             break;
+//         case Main_lexem_code::Arrow:
+//             state_ = State::Arrow;
+//             break;
+//         default:
+//             t                   = false;
+//     }
+//     return t;
+// }
+//
+// bool Regrule::Impl::body_proc()
+// {
+//     bool t;
+//     msc_->back();
+//     // We get the result of parsing the regular expression, which is
+//     // the body of the rule, and return it.
+//     auto regexp         = ep_->compile();
+//     auto regexp_root    = regexp.get_root();
+//     current_rule_.body_ = std::make_shared<ast::Regexp_ast>(regexp_root);
+//     t = false;
+//     return t;
+// }
+//
+// void Regrule::Impl::automaton()
+// {
+//     current_rule_.name_ = 0;
+//     current_rule_.body_ = nullptr;
+//     // Do something.
+//     state_ = State::Start;
+//     while((lc_ = (li_ = msc_->current_lexem()).code) != Main_lexem_code::None){
+//         bool t = (this->*procs_[static_cast<unsigned>(state_)])();
+//         if(!t){
+//             break;
+//         }
+//     }
+//     if(state_ != State::Body){
+//         printf(messages[static_cast<unsigned>(Msg_name::Unexpected_end_of_text)],
+//                msc_->lexem_begin_line_number());
+//         et_.ec->increment_number_of_errors();
+//         msc_->back();
+//     }
+// }
